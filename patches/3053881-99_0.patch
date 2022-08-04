@@ -1,0 +1,140 @@
+diff --git a/core/modules/block_content/block_content.module b/core/modules/block_content/block_content.module
+index 917248cd628..69717d6de62 100644
+--- a/core/modules/block_content/block_content.module
++++ b/core/modules/block_content/block_content.module
+@@ -66,6 +66,13 @@ function block_content_entity_type_alter(array &$entity_types) {
+     $translation['block_content'] = TRUE;
+     $entity_types['block_content']->set('translation', $translation);
+   }
++
++  // Swap out the default EntityChanged constraint with a custom one with
++  // different logic for inline blocks.
++  $constraints = $entity_types['block_content']->getConstraints();
++  unset($constraints['EntityChanged']);
++  $constraints['BlockContentEntityChanged'] = NULL;
++  $entity_types['block_content']->setConstraints($constraints);
+ }
+
+ /**
+diff --git a/core/modules/block_content/block_content.post_update.php b/core/modules/block_content/block_content.post_update.php
+index dfd7bbca7db..8e88fd0ffd9 100644
+--- a/core/modules/block_content/block_content.post_update.php
++++ b/core/modules/block_content/block_content.post_update.php
+@@ -13,3 +13,10 @@ function block_content_removed_post_updates() {
+     'block_content_post_update_add_views_reusable_filter' => '9.0.0',
+   ];
+ }
++
++/**
++ * Added purely to flush caches.
++ */
++function block_content_post_update_entity_changed_constraint() {
++
++}
+diff --git a/core/modules/block_content/src/Plugin/Validation/Constraint/BlockContentEntityChangedConstraint.php b/core/modules/block_content/src/Plugin/Validation/Constraint/BlockContentEntityChangedConstraint.php
+new file mode 100644
+index 00000000000..0b4abd715d9
+--- /dev/null
++++ b/core/modules/block_content/src/Plugin/Validation/Constraint/BlockContentEntityChangedConstraint.php
+@@ -0,0 +1,17 @@
++<?php
++
++namespace Drupal\block_content\Plugin\Validation\Constraint;
++
++use Drupal\Core\Entity\Plugin\Validation\Constraint\EntityChangedConstraint;
++
++/**
++ * Validation constraint for the block content entity changed timestamp.
++ *
++ * @Constraint(
++ *   id = "BlockContentEntityChanged",
++ *   label = @Translation("Block content entity changed", context = "Validation"),
++ *   type = {"entity"}
++ * )
++ */
++class BlockContentEntityChangedConstraint extends EntityChangedConstraint {
++}
+diff --git a/core/modules/block_content/src/Plugin/Validation/Constraint/BlockContentEntityChangedConstraintValidator.php b/core/modules/block_content/src/Plugin/Validation/Constraint/BlockContentEntityChangedConstraintValidator.php
+new file mode 100644
+index 00000000000..b044e1d97ef
+--- /dev/null
++++ b/core/modules/block_content/src/Plugin/Validation/Constraint/BlockContentEntityChangedConstraintValidator.php
+@@ -0,0 +1,30 @@
++<?php
++
++namespace Drupal\block_content\Plugin\Validation\Constraint;
++
++use Drupal\block_content\BlockContentInterface;
++use Drupal\Core\Entity\Plugin\Validation\Constraint\EntityChangedConstraintValidator;
++use Symfony\Component\Validator\Constraint;
++
++/**
++ * Validates the BlockContentEntityChanged constraint.
++ */
++class BlockContentEntityChangedConstraintValidator extends EntityChangedConstraintValidator {
++
++  /**
++   * {@inheritdoc}
++   */
++  public function validate($entity, Constraint $constraint) {
++    // This prevents saving an update to the block via a host entity's form if
++    // the host entity has had other changes made via the API instead of the
++    // entity form, such as a revision revert. This is safe, for example, in the
++    // Layout Builder the inline blocks are not saved until the whole layout is
++    // saved, in which case Layout Builder forces a new revision for the block.
++    // @see \Drupal\layout_builder\InlineBlockEntityOperations::handlePreSave.
++    if ($entity instanceof BlockContentInterface && !$entity->isReusable()) {
++      return;
++    }
++    parent::validate($entity, $constraint);
++  }
++
++}
+diff --git a/core/modules/layout_builder/tests/src/FunctionalJavascript/InlineBlockTest.php b/core/modules/layout_builder/tests/src/FunctionalJavascript/InlineBlockTest.php
+index 773ad3a396a..8286907ca5f 100644
+--- a/core/modules/layout_builder/tests/src/FunctionalJavascript/InlineBlockTest.php
++++ b/core/modules/layout_builder/tests/src/FunctionalJavascript/InlineBlockTest.php
+@@ -662,4 +662,43 @@ public function testEditInlineBlocksPermission() {
+     $assert($permissions, TRUE);
+   }
+
++  /**
++   * Test editing inline blocks when the parent has been reverted.
++   */
++  public function testInlineBlockParentRevert() {
++    $this->drupalLogin($this->drupalCreateUser([
++      'access contextual links',
++      'configure any layout',
++      'administer node display',
++      'administer node fields',
++      'administer nodes',
++      'bypass node access',
++      'create and edit custom blocks',
++    ]));
++    $display = \Drupal::service('entity_display.repository')->getViewDisplay('node', 'bundle_with_section_field');
++    $display->enableLayoutBuilder()->setOverridable()->save();
++    $test_node = $this->createNode([
++      'title' => 'test node',
++      'type' => 'bundle_with_section_field',
++    ]);
++
++    $this->drupalGet("node/{$test_node->id()}/layout");
++    $this->addInlineBlockToLayout('Example block', 'original content');
++    $this->assertSaveLayout();
++    $original_content_revision_id = Node::load($test_node->id())->getLoadedRevisionId();
++
++    $this->drupalGet("node/{$test_node->id()}/layout");
++    $this->configureInlineBlock('original content', 'updated content');
++    $this->assertSaveLayout();
++
++    $this->drupalGet("node/{$test_node->id()}/revisions/$original_content_revision_id/revert");
++    $this->submitForm([], 'Revert');
++    $this->drupalGet("node/{$test_node->id()}/layout");
++    $this->configureInlineBlock('original content', 'second updated content');
++    $this->assertSaveLayout();
++
++    $this->drupalGet($test_node->toUrl());
++    $this->assertSession()->pageTextContains('second updated content');
++  }
++
+ }

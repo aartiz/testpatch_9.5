@@ -1,0 +1,33 @@
+diff --git a/core/themes/olivero/css/components/navigation/nav-secondary.css b/core/themes/olivero/css/components/navigation/nav-secondary.css
+index 5ccab88c..bc1d5972 100644
+--- a/core/themes/olivero/css/components/navigation/nav-secondary.css
++++ b/core/themes/olivero/css/components/navigation/nav-secondary.css
+@@ -86,6 +86,11 @@
+   color: inherit
+ }
+ 
++.secondary-nav__menu-link:focus {
++    outline: auto 2px #2494db;
++    outline-offset: 2px;
++  }
++
+ .secondary-nav__menu-link:after {
+     position: absolute;
+     bottom: 0;
+diff --git a/core/themes/olivero/css/components/navigation/nav-secondary.pcss.css b/core/themes/olivero/css/components/navigation/nav-secondary.pcss.css
+index 99290911..4db14326 100644
+--- a/core/themes/olivero/css/components/navigation/nav-secondary.pcss.css
++++ b/core/themes/olivero/css/components/navigation/nav-secondary.pcss.css
+@@ -46,6 +46,11 @@
+   text-decoration: none;
+   color: inherit;
+ 
++  &:focus {
++    outline: auto 2px var(--color--blue-50);
++    outline-offset: 2px;
++  }
++
+   &:after {
+     position: absolute;
+     bottom: 0;
+

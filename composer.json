@@ -16,6 +16,7 @@
     ],
     "require": {
         "composer/installers": "^1.9",
+        "cweagans/composer-patches": "^1.7",
         "drupal/core-composer-scaffold": "^9.5",
         "drupal/core-project-message": "^9.5",
         "drupal/core-recommended": "^9.5",
@@ -35,7 +36,8 @@
             "drupal/core-composer-scaffold": true,
             "drupal/core-project-message": true,
             "drupal/core-vendor-hardening": true,
-            "dealerdirect/phpcodesniffer-composer-installer": true
+            "dealerdirect/phpcodesniffer-composer-installer": true,
+            "cweagans/composer-patches": true
         },
         "sort-packages": true
     },
@@ -45,6 +47,13 @@
                 "web-root": "./"
             }
         },
+        "enable-patching": true,
+        "patches": {
+            "drupal/core": {
+                "Olivero: my account focus color not matching with other items": "patches/3211562-30.patch",
+                "Reverting entity revisions that contain custom blocks erroneously triggers EntityChangedConstraint": "patches/3053881-99_0.patch"
+            }
+         },
         "installer-paths": {
             "core": ["type:drupal-core"],
             "libraries/{$name}": ["type:drupal-library"],

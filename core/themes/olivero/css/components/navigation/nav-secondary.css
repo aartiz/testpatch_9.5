@@ -86,6 +86,11 @@
   color: inherit
 }
 
+.secondary-nav__menu-link:focus {
+    outline: auto 2px #2494db;
+    outline-offset: 2px;
+  }
+
 .secondary-nav__menu-link:after {
     position: absolute;
     bottom: 0;

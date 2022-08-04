@@ -46,6 +46,11 @@
   text-decoration: none;
   color: inherit;
 
+  &:focus {
+    outline: auto 2px var(--color--blue-50);
+    outline-offset: 2px;
+  }
+
   &:after {
     position: absolute;
     bottom: 0;

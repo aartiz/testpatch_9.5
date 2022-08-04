@@ -13,3 +13,10 @@ function block_content_removed_post_updates() {
     'block_content_post_update_add_views_reusable_filter' => '9.0.0',
   ];
 }
+
+/**
+ * Added purely to flush caches.
+ */
+function block_content_post_update_entity_changed_constraint() {
+
+}
