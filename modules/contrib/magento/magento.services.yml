@@ -1,0 +1,12 @@
+services:
+  magento.client:
+    class: Drupal\magento\Services\MagentoClient
+    arguments: ['@config.factory', '@http_client', '@logger.factory']
+  magento.utils:
+    class: Drupal\magento\Services\MagentoUtils
+    arguments: ['@config.factory', '@database', '@commerce_price.currency_importer', '@entity_type.manager', '@commerce_product.attribute_field_manager', '@logger.factory', '@magento.client', '@commerce_stock.service_manager']
+  magento.import:
+    class: \Drupal\magento\Commands\ImportProduct
+    tags:
+      - { name: drush.command }
+    arguments: ['@magento.client','@magento.utils']

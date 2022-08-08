@@ -1,0 +1,198 @@
+<?php
+
+/**
+ * @file
+ * Contains hook_implementations of Magento module.
+ */
+
+use Drupal\commerce_product\Entity\Product;
+use Drupal\commerce_product\Entity\ProductVariation;
+use Drupal\commerce_product\Entity\ProductType;
+use Drupal\Core\Entity\EntityStorageException;
+use Drupal\entity\BundleFieldDefinition;
+use Drupal\magento\Model\SearchCriteria;
+
+/**
+ * Implements hook_cron().
+ */
+function magento_cron() {
+  $cron_last = \Drupal::service('state')->get('system.cron_last');
+  $magento_client = \Drupal::service('magento.client');
+  $queue = \Drupal::service('queue')->get('magento_create_products');
+  $searchCriteria = new SearchCriteria([
+    'condition' => 'gt',
+    'field' => 'updated_at',
+    'value' => date('Y-m-d H:i:s', $cron_last),
+  ]);
+  $products = $magento_client->getProducts([$searchCriteria]);
+  foreach ($products as $product) {
+    $queue->createItem(['sku' => $product['sku']]);
+  }
+}
+
+/**
+ * Function to create product types.
+ */
+function _create_product_types() {
+  /** @var \Drupal\magento\Services\MagentoClient $magentoClient */
+  $magentoClient = \Drupal::service('magento.client');
+  $configurable_field_manager = \Drupal::service('commerce.configurable_field_manager');
+  $logger = \Drupal::logger('magento');
+  $baseFields = \Drupal::entityTypeManager()->getDefinition('commerce_product')->getKeys();
+
+  $attributeSets = $magentoClient->getProductAttributeSets(new SearchCriteria([
+    'field' => 'attribute_set_id',
+    'condition' => 'gt',
+    'value' => 0,
+  ]));
+
+  foreach ($attributeSets as $attributeSet) {
+    $productType = ProductType::create([
+      'id' => $attributeSet['attribute_set_id'],
+      'label' => $attributeSet['attribute_set_name'],
+      'status' => 1,
+      'description' => $attributeSet['attribute_set_name'],
+      'variationType' => 'default',
+      'injectVariationFields' => TRUE,
+    ]);
+    try {
+      if ($productType->save()) {
+        commerce_product_add_variations_field($productType);
+        commerce_product_add_stores_field($productType);
+        commerce_product_add_body_field($productType);
+        $attributes = $magentoClient->getProductAttributeSetAttributes($attributeSet['attribute_set_id']);
+        foreach ($attributes as $index => $attribute) {
+          // @todo Create Images/media on the basis of 'frontend_input'.
+          // @todo Create select fields with allowed values.
+          if (!in_array($attribute['attribute_code'], $baseFields)) {
+            $fieldType = $attribute['attribute_code'] !== 'category_ids'
+              ? _get_field_type($attribute['backend_type'], $attribute['frontend_input']) : 'entity_reference';
+            $field_definition = BundleFieldDefinition::create($fieldType)
+              ->setTargetEntityTypeId('commerce_product')
+              ->setTargetBundle($productType->id())
+              ->setName($attribute['attribute_code'])
+              ->setLabel($attribute['default_frontend_label'])
+            // @todo See if it is possible to get this from API.
+              ->setCardinality(1)
+              ->setRequired($attribute['is_required'])
+              ->setTranslatable(TRUE)
+              ->setDefaultValue($attribute['default_value'])
+              ->setDisplayOptions('form', ['weight' => $index])
+              ->setDisplayOptions('view', ['weight' => $index]);
+            if ($fieldType === 'entity_reference') {
+              $field_definition->setSetting('target_type', 'taxonomy_term');
+              $field_definition->setSetting('handler_settings', [
+                'target_bundles' => [
+                  'product_categories' => 'product_categories',
+                ],
+              ]);
+            }
+            $configurable_field_manager->createField($field_definition, FALSE);
+          }
+        }
+      }
+    }
+    catch (EntityStorageException $e) {
+      $logger->error($e->getMessage());
+    }
+  }
+}
+
+/**
+ * Creates Magento categories as Taxonomies in Drupal.
+ */
+function _create_categories() {
+  /** @var \Drupal\magento\Services\MagentoClient $magentoClient */
+  $magentoClient = \Drupal::service('magento.client');
+  /** @var \Drupal\magento\Services\MagentoUtils $magentoUtils */
+  $magentoUtils = \Drupal::service('magento.utils');
+  $vid = 'product_categories';
+  $vocabulary = $magentoUtils->getVocabulary($vid, [
+    'name' => 'Product Categories',
+    'description' => 'Magento Product Categories',
+    'vid' => $vid,
+  ]);
+  $categories = $magentoClient->getCategoriesHierarchy();
+  return $magentoUtils->createTerms($categories, $vocabulary->id());
+}
+
+/**
+ * Retrives the field type for Drupal.
+ */
+function _get_field_type($backendType, $frontEndType) {
+  $drupalField = 'string';
+  switch ($backendType) {
+    case 'datetime':
+      $drupalField = 'datetime';
+      break;
+
+    case 'decimal':
+      $drupalField = 'decimal';
+      break;
+
+    case 'int':
+      $drupalField = 'integer';
+      break;
+
+    case 'static':
+    case 'text':
+    case 'varchar':
+    case 'default':
+      $drupalField = 'text';
+  }
+  switch ($frontEndType) {
+    case 'media_image':
+      $drupalField = 'image';
+      break;
+
+    case 'textarea':
+      $drupalField = 'text_long';
+      break;
+  }
+  return $drupalField;
+}
+
+/**
+ * Function to get drupal product id via sku.
+ */
+function get_drupal_product_id($sku) {
+  $productId = -1;
+  $query = \Drupal::database()->select('commerce_product_variation_field_data', 'cpvfd')
+    ->condition('cpvfd.sku', $sku, '=')
+    ->fields('cpvfd', ['variation_id']);
+  $rows = $query->execute()->fetchAll();
+  $id = 0;
+  foreach ($rows as $row) {
+    $id = $row->variation_id;
+  }
+  $variation = ProductVariation::load($id);
+  if ($variation) {
+    $productId = $variation->getProductId();
+  }
+  return $productId;
+}
+
+/**
+ * Function to fetch related products.
+ */
+function fetch_related_products($magentoClient, $product) {
+  $defaultVariation = $product->getDefaultVariation();
+  if ($defaultVariation) {
+    $sku = $defaultVariation->getSku();
+    $magentoProduct = $magentoClient->getProduct($sku);
+    $productLinks = $magentoProduct['product_links'] ?? [];
+    foreach ($productLinks as $productLink) {
+      if ($productLink['link_type'] === 'upsell') {
+        $relatedProductId = get_drupal_product_id($productLink['linked_product_sku']);
+        $relatedProduct = Product::load($relatedProductId);
+        if ($relatedProduct) {
+          $product->field_upsell_products->appendItem([
+            'target_id' => $relatedProductId,
+          ]);
+        }
+      }
+    }
+    return $product->save();
+  }
+  return FALSE;
+}

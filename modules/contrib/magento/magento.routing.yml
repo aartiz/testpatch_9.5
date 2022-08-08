@@ -1,0 +1,7 @@
+magento.admin_settings:
+  path: '/admin/config/magento'
+  defaults:
+    _form: '\Drupal\magento\Form\MagentoConfigForm'
+    _title: 'Magento Settings'
+  requirements:
+    _permission: 'administer site configuration'

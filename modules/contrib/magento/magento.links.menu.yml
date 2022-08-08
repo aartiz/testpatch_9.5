@@ -1,0 +1,6 @@
+magento.magento_settings:
+  title: 'Magento Settings'
+  route_name: magento.admin_settings
+  description: 'Settings for magento module'
+  parent: system.admin_config
+  weight: 100

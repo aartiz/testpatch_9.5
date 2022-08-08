@@ -1,0 +1,17 @@
+name: Magento
+description: 'Provides integration between Magento and Drupal. Easily sync product and other content from Magento to Drupal.'
+type: module
+core_version_requirement: ^8.8 || ^9
+package: 'Magento'
+configure: magento.admin_settings
+dependencies:
+  - commerce:commerce
+  - commerce:commerce_price
+  - commerce:commerce_product
+  - commerce_addon:commerce_addon
+  - commerce_stock:commerce_stock
+
+# Information added by Drupal.org packaging script on 2022-07-21
+version: '2.0.0-alpha1'
+project: 'magento'
+datestamp: 1658401500

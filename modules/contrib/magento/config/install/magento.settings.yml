@@ -1,0 +1,64 @@
+access_token: ''
+magento_url: ''
+base_uri: '/index.php/rest/default/V{vid}'
+api_version: 1
+debug_mode: false
+endpoints:
+  categories:
+    base:
+      method: 'GET'
+      uri: '/categories/list'
+    hierarchy:
+      method: 'GET'
+      uri: '/categories'
+    individual:
+      method: 'GET'
+      uri: '/categories/{categoryId}'
+    attributes:
+      base:
+        method: 'GET'
+        uri: '/categories/attributes'
+      individual:
+        method: 'GET'
+        uri: '/categories/attributes/{attributeCode}'
+  currency:
+    base:
+      method: 'GET'
+      uri: '/directory/currency'
+  guest-cart:
+    create:
+      method: 'POST'
+      uri: '/guest-carts'
+    individual:
+      method: 'GET'
+      uri: '/guest-carts/{cartId}'
+  products:
+    base:
+      method: 'GET'
+      uri: '/products'
+    individual:
+      method: 'GET'
+      uri: '/products/{sku}'
+    attributes:
+      base:
+        method: 'GET'
+        uri: '/products/attributes/types'
+      individual:
+        method: 'GET'
+        uri: '/products/attributes/{attributeCode}'
+    attribute_sets:
+      attributes:
+        method: 'GET'
+        uri: '/products/attribute-sets/{attributeSetId}/attributes'
+      base:
+        method: 'GET'
+        uri: '/products/attribute-sets/sets/list'
+      individual:
+        method: 'GET'
+        uri: '/products/attribute-sets/{attributeSetId}'
+    create:
+      method: 'POST'
+      uri: '/products'
+    reviews:
+      method: 'GET'
+      uri: '/get_product_reviews/{id}'

@@ -1,0 +1,17 @@
+<?php
+
+/**
+ * @file
+ * Contains hook install function for Magento.
+ */
+
+/**
+ * Implements hook_install().
+ */
+function magento_install() {
+  $access = \Drupal::config('magento.settings')->get('access_token');
+
+  if (!$access == NULL) {
+    _create_product_types();
+  }
+}

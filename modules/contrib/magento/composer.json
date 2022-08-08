@@ -1,0 +1,35 @@
+{
+    "name": "drupal/magento",
+    "description": "Provides integration between Magento and Drupal. Easily sync product and other content from Magento to Drupal.",
+    "type": "drupal-module",
+    "license": "GPL-2.0-or-later",
+    "authors": [
+        {
+        "name": "Gaurav Kapoor (gaurav.kapoor)",
+        "homepage": "https://www.drupal.org/u/gauravkapoor",
+        "role": "Maintainer"
+        },
+        {
+        "name": "VIGHNESH SADAGOPAL (Vighnesh.)",
+        "homepage": "https://www.drupal.org/u/vighnesh-0",
+        "role": "Maintainer"
+        },
+        {
+        "name": "Omkar Deshpande (omkar-pd)",
+        "homepage": "https://www.drupal.org/u/omkar-pd",
+        "role": "Maintainer"
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "Drupal\\Magento\\": "src/"
+        }
+    },
+    "minimum-stability": "dev",
+    "require": {
+        "drupal/commerce": "^2.30",
+        "drupal/commerce_addon": "1.x-dev@dev",
+        "drupal/commerce_stock": "^1.0",
+        "drush/drush": "10.x"
+    }
+}
